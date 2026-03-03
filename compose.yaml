@@ -1,0 +1,46 @@
+services:
+  mongo:
+    image: mongo:8.0
+    container_name: mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: wowprogress
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/data/configdb
+    networks:
+      - wowprogress-companion
+
+  scraper:
+    build: 
+      context: ./scraper
+      network: host
+    container_name: scraper
+    environment:
+      MONGODB_URI: ${MONGODB_URI:-}
+      MONGODB_DB_NAME: ${MONGO_DB_NAME:-}
+      CHECK_INTERVAL: ${CHECK_INTERVAL:-}
+      RAID_ID: ${RAID_ID:-}
+      BOSSES_IDS: ${BOSSES_IDS:-}
+      DIFFICULTY_IDS: ${DIFFICULTY_IDS:-}
+      REALM_SLUG: ${REALM_SLUG:-}
+      GUILD_SLUG: ${GUILD_SLUG:-}
+      REGION_SLUG: ${REGION_SLUG:-}
+    depends_on:
+      - mongo
+    networks:
+      - wowprogress-companion
+
+volumes:
+  mongo-data:
+    driver: local
+  mongo-config:
+    driver: local   
+
+networks:
+  wowprogress-companion:
+    driver: bridge
