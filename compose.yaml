@@ -35,6 +35,36 @@ services:
     networks:
       - wowprogress-companion
 
+  api:
+    build:
+      context: ./api
+      network: host
+    container_name: api
+    ports:
+      - "3000:3000"
+    environment:
+      MONGODB_URI: ${MONGODB_URI:-}
+      MONGODB_DB_NAME: ${MONGO_DB_NAME:-}
+      AUTH_TOKEN: ${AUTH_TOKEN:-}
+      PORT: ${API_PORT:-3000}
+    depends_on:
+      - mongo
+    networks:
+      - wowprogress-companion
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend
+    ports:
+      - "5173:80"
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3000}
+    depends_on:
+      - api
+    networks:
+      - wowprogress-companion
+
 volumes:
   mongo-data:
     driver: local
