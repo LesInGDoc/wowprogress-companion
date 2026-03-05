@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://api.wowcompanion.proxyfil.fr';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://api-wowcompanion.proxyfil.fr';
 
 export class APIError extends Error {
   constructor(message, status) {
