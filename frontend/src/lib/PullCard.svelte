@@ -98,12 +98,25 @@
     margin-bottom: 1rem;
   }
 
+  @media (max-width: 768px) {
+    .pull-card {
+      padding: 1rem;
+    }
+  }
+
   .pull-header {
     display: flex;
     justify-content: space-between;
     align-items: start;
-    margin-bottom: 1rem;
+    margin-bottom: 1rem;    flex-wrap: wrap;
+    gap: 1rem;
   }
+
+  @media (max-width: 768px) {
+    .pull-header {
+      flex-direction: column;
+      align-items: stretch;
+    }  }
 
   .pull-info h3 {
     margin: 0 0 0.5rem 0;
@@ -154,6 +167,12 @@
     margin-top: 1rem;
   }
 
+  @media (max-width: 768px) {
+    .actions {
+      flex-direction: column;
+    }
+  }
+
   .btn {
     padding: 0.5rem 1rem;
     border: none;
@@ -161,6 +180,12 @@
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
+  }
+
+  @media (max-width: 768px) {
+    .btn {
+      width: 100%;
+    }
   }
 
   .btn:disabled {

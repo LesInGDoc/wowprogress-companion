@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { fetchPulls, fetchFilters } from './services/api.js';
   import PullCard from './lib/PullCard.svelte';
 
@@ -23,6 +23,11 @@
   let isLoadingFilters = true;
   let error = null;
 
+  // Auto-update functionality
+  let lastUpdateTime = null;
+  let autoUpdateInterval = null;
+  let reverseOrder = false;
+
   onMount(async () => {
     try {
       const filters = await fetchFilters();
@@ -44,6 +49,12 @@
     }
   });
 
+  onDestroy(() => {
+    if (autoUpdateInterval) {
+      clearInterval(autoUpdateInterval);
+    }
+  });
+
   async function handleFetchPulls() {
     isLoading = true;
     error = null;
@@ -57,8 +68,8 @@
         bosses: bosses.join(','),
         hideRejected
       });
-
-      pulls = pulls.reverse()
+      lastUpdateTime = new Date();
+      startAutoUpdate();
     } catch (err) {
       error = err.message;
       pulls = [];
@@ -66,6 +77,30 @@
       isLoading = false;
     }
   }
+
+  function startAutoUpdate() {
+    // Clear existing interval
+    if (autoUpdateInterval) {
+      clearInterval(autoUpdateInterval);
+    }
+    // Start new interval for 30 seconds
+    autoUpdateInterval = setInterval(() => {
+      if (realmSlug && guildSlug && raidSlug && !isLoading) {
+        handleFetchPulls();
+      }
+    }, 30000);
+  }
+
+  function toggleReverseOrder() {
+    reverseOrder = !reverseOrder;
+  }
+
+  function formatLastUpdate(date) {
+    if (!date) return 'Never';
+    return date.toLocaleTimeString();
+  }
+
+  $: displayedPulls = reverseOrder ? [...pulls].reverse() : pulls;
 </script>
 
 <main>
@@ -161,7 +196,30 @@
     </section>
 
     <section class="pulls-section">
-      <h2>Pulls ({pulls.length})</h2>
+      <div class="pulls-header">
+        <h2>Pulls ({pulls.length})</h2>
+        <div class="pulls-controls">
+          {#if lastUpdateTime}
+            <span class="last-update">Last update: {formatLastUpdate(lastUpdateTime)}</span>
+          {/if}
+          <button 
+            class="control-btn update-btn" 
+            on:click={handleFetchPulls}
+            disabled={isLoading || !realmSlug || !guildSlug || !raidSlug}
+            title="Refresh data"
+          >
+            🔄 Update
+          </button>
+          <button 
+            class="control-btn reverse-btn" 
+            on:click={toggleReverseOrder}
+            disabled={pulls.length === 0}
+            title="Reverse order"
+          >
+            ⇅ {reverseOrder ? 'Oldest First' : 'Newest First'}
+          </button>
+        </div>
+      </div>
       
       {#if pulls.length === 0 && !isLoading}
         <div class="empty-state">
@@ -170,11 +228,11 @@
         </div>
       {:else}
         <div class="pulls-list">
-          {#each pulls as pull, index (pull.pull_id)}
+          {#each displayedPulls as pull, index (pull.pull_id)}
             <PullCard 
               {pull} 
               {authToken}
-              ordinalNumber={index + 1}
+              ordinalNumber={reverseOrder ? index + 1 : pulls.length - index}
               onUpdate={handleFetchPulls}
             />
           {/each}
@@ -195,10 +253,24 @@
     color: #1a1a1a;
   }
 
+  @media (max-width: 768px) {
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+  }
+
   h2 {
     font-size: 1.5rem;
     margin-bottom: 1.5rem;
     color: #333;
+  }
+
+  @media (max-width: 768px) {
+    h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+    }
   }
 
   .container {
@@ -213,6 +285,12 @@
     }
   }
 
+  @media (max-width: 768px) {
+    .container {
+      gap: 1rem;
+    }
+  }
+
   .form-section {
     background: white;
     padding: 2rem;
@@ -223,11 +301,25 @@
     top: 2rem;
   }
 
+  @media (max-width: 768px) {
+    .form-section {
+      position: static;
+      padding: 1rem;
+    }
+  }
+
   .form-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
     margin-bottom: 1.5rem;
+  }
+
+  @media (max-width: 768px) {
+    .form-grid {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
   }
 
   .form-group {
@@ -317,6 +409,80 @@
 
   .pulls-section {
     min-height: 400px;
+  }
+
+  .pulls-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .pulls-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .last-update {
+    font-size: 0.9rem;
+    color: #666;
+    padding: 0.5rem 0.75rem;
+    background: #f3f4f6;
+    border-radius: 6px;
+  }
+
+  .control-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: white;
+    color: #333;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .control-btn:hover:not(:disabled) {
+    background: #f9fafb;
+    border-color: #3b82f6;
+    color: #3b82f6;
+  }
+
+  .control-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .update-btn:hover:not(:disabled) {
+    background: #3b82f6;
+    color: white;
+  }
+
+  @media (max-width: 768px) {
+    .pulls-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .pulls-controls {
+      width: 100%;
+      justify-content: space-between;
+    }
+
+    .last-update {
+      width: 100%;
+      text-align: center;
+    }
+
+    .control-btn {
+      flex: 1;
+      min-width: calc(50% - 0.375rem);
+    }
   }
 
   .pulls-list {
