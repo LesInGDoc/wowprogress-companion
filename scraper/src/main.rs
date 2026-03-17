@@ -37,13 +37,13 @@ async fn main() {
             let response = web_client.getpulls(&boss_config, &config).await;
             match response {
                 Ok(resp) => {
+                    if &resp.status() != &200 {
+                        eprintln!("Error fetching pulls for boss {} with difficulty {}: HTTP {}", boss_config.boss_id, boss_config.difficulty_id, resp.status());
+                        break;
+                    }
+                    
                     println!("Successfully fetched pulls for boss {} with difficulty {}", boss_config.boss_id, boss_config.difficulty_id);
                     let pulls_data = resp.json::<serde_json::Value>().await.unwrap();
-
-                    // Debug: print first pull to see structure
-                    if let Some(first_pull) = pulls_data["bossAttempts"].as_array().and_then(|arr| arr.first()) {
-                        println!("DEBUG - First pull structure: {}", serde_json::to_string_pretty(first_pull).unwrap_or_else(|_| "Failed to serialize".to_string()));
-                    }
 
                     let formatted_pulls = pulls_data["bossAttempts"].as_array().unwrap().iter().map(|pull| {
                         let mut pull_doc = mongodb::bson::Document::new();
@@ -82,12 +82,17 @@ async fn main() {
                         let mut guild_doc = mongodb::bson::Document::new();
                         guild_doc.insert("slug", config.guild_slug.clone());
                         pull_doc.insert("guild", guild_doc);
+
+                        let is_pull_autoreject: &str = match pull.get("duration_ms").and_then(|v| v.as_i64()).unwrap_or(0) < 10000 {
+                            true => "rejected",
+                            false => "waiting"
+                        };
                         
                         pull_doc.insert("is_success", pull.get("is_success").and_then(|v| v.as_bool()).unwrap_or(false));
                         pull_doc.insert("overall_percent", pull.get("overall_percent").and_then(|v| v.as_f64()).unwrap_or(0.0));
                         pull_doc.insert("pull_count", pull.get("pull_count").and_then(|v| v.as_i64()).unwrap_or(0));
                         pull_doc.insert("duration_ms", pull.get("duration_ms").and_then(|v| v.as_i64()).unwrap_or(0));
-                        pull_doc.insert("status", "waiting");
+                        pull_doc.insert("status", is_pull_autoreject);
 
                         pull_doc
                     }).collect::<Vec<mongodb::bson::Document>>();
