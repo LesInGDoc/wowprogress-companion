@@ -2,6 +2,9 @@
   import { onMount, onDestroy } from 'svelte';
   import { fetchPulls, fetchFilters } from './services/api.js';
   import PullCard from './lib/PullCard.svelte';
+  import MetricsPage from './metrics/MetricsPage.svelte';
+
+  let route = window.location.pathname;
 
   let realmSlug = '';
   let guildSlug = '';
@@ -28,7 +31,22 @@
   let autoUpdateInterval = null;
   let reverseOrder = false;
 
-  onMount(async () => {
+  function setRoute(path) {
+    route = path;
+  }
+
+  function navigate(path, event) {
+    event.preventDefault();
+    if (window.location.pathname === path) return;
+    history.pushState({}, '', path);
+    setRoute(path);
+    if (path !== '/metrics' && availableRealms.length === 0 && !isLoadingFilters) {
+      loadFilters();
+    }
+  }
+
+  async function loadFilters() {
+    isLoadingFilters = true;
     try {
       const filters = await fetchFilters();
       availableRealms = filters.realms.map(r => r.String || r);
@@ -47,6 +65,25 @@
     } finally {
       isLoadingFilters = false;
     }
+  }
+
+  onMount(async () => {
+    const onPopState = () => {
+      setRoute(window.location.pathname);
+      if (window.location.pathname !== '/metrics' && availableRealms.length === 0 && !isLoadingFilters) {
+        loadFilters();
+      }
+    };
+
+    window.addEventListener('popstate', onPopState);
+
+    if (route !== '/metrics') {
+      await loadFilters();
+    }
+
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+    };
   });
 
   onDestroy(() => {
@@ -104,8 +141,17 @@
 </script>
 
 <main>
-  <h1>WoW Progress Companion</h1>
+  <div class="top-header">
+    <h1>WoW Progress Companion</h1>
+    <nav class="top-nav" aria-label="Pages">
+      <a href="/" class:active-link={route !== '/metrics'} on:click={(event) => navigate('/', event)}>Pulls</a>
+      <a href="/metrics" class:active-link={route === '/metrics'} on:click={(event) => navigate('/metrics', event)}>Metrics</a>
+    </nav>
+  </div>
 
+  {#if route === '/metrics'}
+    <MetricsPage />
+  {:else}
   <div class="container">
     <section class="form-section">
       <h2>Query Parameters</h2>
@@ -240,6 +286,7 @@
       {/if}
     </section>
   </div>
+  {/if}
 </main>
 
 <style>
@@ -247,9 +294,39 @@
     min-height: 100vh;
   }
 
+  .top-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .top-nav {
+    display: inline-flex;
+    border: 1px solid #d4d4d8;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #fff;
+  }
+
+  .top-nav a {
+    text-decoration: none;
+    color: #334155;
+    padding: 0.55rem 0.9rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .top-nav a.active-link {
+    background: #111827;
+    color: #fff;
+  }
+
   h1 {
     font-size: 2rem;
-    margin-bottom: 2rem;
+    margin-bottom: 0;
     color: #1a1a1a;
   }
 

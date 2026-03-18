@@ -12,6 +12,11 @@ services:
     volumes:
       - mongo-data:/data/db
       - mongo-config:/data/configdb
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "mongodb://root:password@localhost:27017/admin", "--eval", "db.runCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
     networks:
       - wowprogress-companion
 
@@ -69,7 +74,9 @@ volumes:
   mongo-data:
     driver: local
   mongo-config:
-    driver: local   
+    driver: local
+  postgres-data:
+    driver: local
 
 networks:
   wowprogress-companion:

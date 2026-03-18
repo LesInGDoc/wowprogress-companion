@@ -65,3 +65,26 @@ export async function fetchFilters() {
 
   return await response.json();
 }
+
+const CHART_COLORS = {
+    accepted: 'green',
+    rejected: 'red',
+};
+
+const LINE_CHART_OPTIONS = {
+    elements: {
+        line: {
+            borderWidth: 1, // Make lines thinner
+        },
+    },
+};
+
+const VERTICAL_AXIS_OPTIONS = {
+    ticks: {
+        beginAtZero: true,
+    },
+};
+
+const TABLE_OPTIONS = {
+    sortable: true,
+};
